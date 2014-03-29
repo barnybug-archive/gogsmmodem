@@ -165,3 +165,27 @@ func TestGetMissingMessage(t *testing.T) {
 	}
 	modem.Close()
 }
+
+var sendMessageReplay = []string{
+	"->AT+CMGS=\"441234567890\"\r\n",
+	"<-> \r\n",
+	"->Body\x1a",
+	"<-\r\nOK\r\n",
+}
+
+func TestSendMessage(t *testing.T) {
+	OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
+		replay := appendLists(initReplay, sendMessageReplay)
+		return NewMockSerialPort(replay), nil
+	}
+	modem, err := Open(&serial.Config{}, true)
+	if err != nil {
+		t.Error("Expected: no error, got:", err)
+	}
+
+	err = modem.SendMessage("441234567890", "Body")
+	if err != nil {
+		t.Error("Expected: no error, got:", err)
+	}
+	modem.Close()
+}

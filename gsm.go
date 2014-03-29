@@ -76,6 +76,11 @@ func (self *Modem) DeleteMessage(n int) error {
 	return err
 }
 
+func (self *Modem) SendMessage(telephone, body string) error {
+	_, err := self.sendBody("+CMGS", body, telephone)
+	return err
+}
+
 func lineChannel(r io.Reader) chan string {
 	ret := make(chan string)
 	go func() {
@@ -127,13 +132,13 @@ func parsePacket(status string, header string, body string) Packet {
 
 func (self *Modem) listen() {
 	in := lineChannel(self.port)
-	var echo, question, header, body string
+	var echo, last, header, body string
 	for {
 		select {
 		case line := <-in:
 			if line == echo {
 				continue // ignore echo of command
-			} else if question != "" && strings.Index(line, question) == 0 {
+			} else if last != "" && startsWith(line, last) {
 				header = line
 			} else if line == "OK" || line == "ERROR" {
 				packet := parsePacket(line, header, body)
@@ -143,6 +148,8 @@ func (self *Modem) listen() {
 			} else if header != "" {
 				// the body following a header
 				body += line
+			} else if line == "> " {
+				// raw mode for body
 			} else {
 				// OOB packet
 				p := parsePacket("OK", line, "")
@@ -153,8 +160,7 @@ func (self *Modem) listen() {
 		case line := <-self.tx:
 			m := reQuestion.FindStringSubmatch(line)
 			if len(m) > 0 {
-				// command is a question
-				question = m[1]
+				last = m[1]
 			}
 			echo = strings.TrimRight(line, "\r\n")
 			self.port.Write([]byte(line))
@@ -169,6 +175,16 @@ func formatCommand(cmd string, args ...interface{}) string {
 	}
 	line += "\r\n"
 	return line
+}
+
+func (self *Modem) sendBody(cmd string, body string, args ...interface{}) (Packet, error) {
+	self.tx <- formatCommand(cmd, args...)
+	self.tx <- body + "\x1a"
+	response := <-self.rx
+	if _, e := response.(ERROR); e {
+		return response, errors.New("Response was ERROR")
+	}
+	return response, nil
 }
 
 func (self *Modem) send(cmd string, args ...interface{}) (Packet, error) {
