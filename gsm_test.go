@@ -3,6 +3,7 @@ package gogsmmodem
 import (
 	"fmt"
 	"io"
+	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ var initReplay = []string{
 	"->ATE0\r\n",
 	"<-ATE0\n",
 	"<-\r\nOK\r\n",
-	"->AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n",
+	"->AT+CPMS=\"MT\",\"MT\",\"MT\"\r\n",
 	"<-\r\n+CPMS: 50,50,50,50,50,50\r\nOK\n\n",
 	"->AT+CMGF=1\r\n",
 	"<-\r\nOK\r\n",
@@ -137,7 +138,7 @@ func TestGetMessage(t *testing.T) {
 	}
 
 	msg, _ := modem.GetMessage(1)
-	expected := Message{"REC UNREAD", "+441234567890", time.Date(2014, 2, 1, 15, 7, 43, 0, time.UTC), "Hi"}
+	expected := Message{0, "REC UNREAD", "+441234567890", time.Date(2014, 2, 1, 15, 7, 43, 0, time.UTC), "Hi", false}
 	if *msg != expected {
 		t.Errorf("Expected: %#v, got %#v", expected, msg)
 	}
@@ -186,6 +187,90 @@ func TestSendMessage(t *testing.T) {
 	err = modem.SendMessage("441234567890", "Body")
 	if err != nil {
 		t.Error("Expected: no error, got:", err)
+	}
+	modem.Close()
+}
+
+var listMessagesReplay = []string{
+	"->AT+CMGL=\"ALL\"\r\n",
+	"<-\r\n+CMGL: 0,\"REC UNREAD\",\"+441234567890\",,\"14/02/01,15:07:43+00\"\r\nHi\r\n+CMGL: 1,\"REC READ\",\"+441234567890\",,\"14/02/01,15:07:43+00\"\r\nOla\r\n+CMGL: 2,\"REC UNREAD\",\"+44123456",
+	"<-7890\",,\"14/02/01,15:07:43+00\"\r\nJa\r\n\r\nOK\r\n",
+}
+
+func TestListMessages(t *testing.T) {
+	OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
+		replay := appendLists(initReplay, listMessagesReplay)
+		return NewMockSerialPort(replay), nil
+	}
+	modem, err := Open(&serial.Config{}, true)
+	if err != nil {
+		t.Error("Expected: no error, got:", err)
+	}
+
+	msg, _ := modem.ListMessages("ALL")
+	expected := MessageList{
+		Message{0, "REC UNREAD", "+441234567890", time.Date(2014, 2, 1, 15, 7, 43, 0, time.UTC), "Hi", false},
+		Message{1, "REC READ", "+441234567890", time.Date(2014, 2, 1, 15, 7, 43, 0, time.UTC), "Ola", false},
+		Message{2, "REC UNREAD", "+441234567890", time.Date(2014, 2, 1, 15, 7, 43, 0, time.UTC), "Ja", true},
+	}
+	if len(*msg) != len(expected) {
+		t.Errorf("Expected: %#v, got %#v", expected, msg)
+	}
+	for i, m := range *msg {
+		if m != expected[i] {
+			t.Errorf("Expected: %#v, got %#v", expected, msg)
+		}
+	}
+	modem.Close()
+}
+
+var listMessagesEmptyReplay = []string{
+	"->AT+CMGL=\"ALL\"\r\n",
+	"<-\r\nOK\r\n",
+}
+
+func TestListMessagesEmpty(t *testing.T) {
+	OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
+		replay := appendLists(initReplay, listMessagesEmptyReplay)
+		return NewMockSerialPort(replay), nil
+	}
+	modem, err := Open(&serial.Config{}, true)
+	if err != nil {
+		t.Error("Expected: no error, got:", err)
+	}
+
+	msg, err := modem.ListMessages("ALL")
+	log.Println("ERROR", err)
+	expected := MessageList{}
+	if len(*msg) != len(expected) {
+		t.Errorf("Expected: %#v, got %#v", expected, msg)
+	}
+	modem.Close()
+}
+
+var storageAreasReplay = []string{
+	"->AT+CPMS=?\r\n",
+	"<-\r\n+CPMS: (\"ME\",\"MT\",\"SM\",\"SR\"),(\"ME\",\"MT\",\"SM\",\"SR\"),(\"ME\",\"MT\",\"SM\",\"SR\")\r\n\r\nOK\r\n",
+}
+
+func TestSupportedStorageAreas(t *testing.T) {
+	OpenPort = func(config *serial.Config) (io.ReadWriteCloser, error) {
+		replay := appendLists(initReplay, storageAreasReplay)
+		return NewMockSerialPort(replay), nil
+	}
+	modem, err := Open(&serial.Config{}, true)
+	if err != nil {
+		t.Error("Expected: no error, got:", err)
+	}
+
+	msg, _ := modem.SupportedStorageAreas()
+	expected := StorageAreas{
+		[]string{"ME", "MT", "SM", "SR"},
+		[]string{"ME", "MT", "SM", "SR"},
+		[]string{"ME", "MT", "SM", "SR"},
+	}
+	if fmt.Sprint(*msg) != fmt.Sprint(expected) {
+		t.Errorf("Expected: %#v, got %#v", expected, msg)
 	}
 	modem.Close()
 }

@@ -27,11 +27,28 @@ type SMSCAddress struct {
 
 // +CMGR
 type Message struct {
+	Index     int
 	Status    string
 	Telephone string
 	Timestamp time.Time
 	Body      string
+	Last      bool
 }
+
+// +CPMS=?
+type StorageAreas struct {
+	Received []string
+	Sent     []string
+	New      []string
+}
+
+// +CPMS=...
+type StorageInfo struct {
+	UsedSpace1, MaxSpace1, UsedSpace2, MaxSpace2, UsedSpace3, MaxSpace3 int
+}
+
+// +CMGL
+type MessageList []Message
 
 // Simple OK response
 type OK struct{}

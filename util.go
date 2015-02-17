@@ -25,11 +25,12 @@ func parseTime(t string) time.Time {
 func quote(s interface{}) string {
 	switch v := s.(type) {
 	case string:
+		if v == "?" {
+			return v
+		}
 		return fmt.Sprintf(`"%s"`, v)
-	case int:
-		return fmt.Sprintf("%d", v)
-	case int64:
-		return fmt.Sprintf("%d", v)
+	case int, int64:
+		return fmt.Sprint(v)
 	default:
 		panic(fmt.Sprintf("Unsupported argument type: %T", v))
 	}
@@ -72,6 +73,16 @@ func unquotes(s string) []interface{} {
 		args[i] = unquote(v)
 	}
 	return args
+}
+
+// Unquote a parameter list of strings
+func stringsUnquotes(s string) []string {
+	args := unquotes(s)
+	var res []string
+	for _, arg := range args {
+		res = append(res, fmt.Sprint(arg))
+	}
+	return res
 }
 
 // A logging ReadWriteCloser for debugging
