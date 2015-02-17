@@ -17,7 +17,7 @@ var initReplay = []string{
 	"->ATE0\r\n",
 	"<-ATE0\n",
 	"<-\r\nOK\r\n",
-	"->AT+CPMS=\"MT\",\"MT\",\"MT\"\r\n",
+	"->AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n",
 	"<-\r\n+CPMS: 50,50,50,50,50,50\r\nOK\n\n",
 	"->AT+CMGF=1\r\n",
 	"<-\r\nOK\r\n",
