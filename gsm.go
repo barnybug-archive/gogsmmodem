@@ -116,7 +116,8 @@ func (self *Modem) DeleteMessage(n int) error {
 }
 
 func (self *Modem) SendMessage(telephone, body string) error {
-	_, err := self.sendBody("+CMGS", body, telephone)
+	enc := gsmEncode(body)
+	_, err := self.sendBody("+CMGS", enc, telephone)
 	return err
 }
 

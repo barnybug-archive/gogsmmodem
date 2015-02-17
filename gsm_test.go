@@ -170,7 +170,7 @@ func TestGetMissingMessage(t *testing.T) {
 var sendMessageReplay = []string{
 	"->AT+CMGS=\"441234567890\"\r\n",
 	"<-> \r\n",
-	"->Body\x1a",
+	"->Body\x00\x1a",
 	"<-\r\nOK\r\n",
 }
 
@@ -184,7 +184,7 @@ func TestSendMessage(t *testing.T) {
 		t.Error("Expected: no error, got:", err)
 	}
 
-	err = modem.SendMessage("441234567890", "Body")
+	err = modem.SendMessage("441234567890", "Body@")
 	if err != nil {
 		t.Error("Expected: no error, got:", err)
 	}
