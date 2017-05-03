@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tarm/goserial"
+	"github.com/tarm/serial"
 )
 
 var initReplay = []string{
