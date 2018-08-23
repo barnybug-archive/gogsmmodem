@@ -139,8 +139,15 @@ func lineChannel(r io.Reader) chan string {
 
 var reQuestion = regexp.MustCompile(`AT(\+[A-Z]+)`)
 
-func parsePacket(status string, header string, body string) Packet {
-	if header == "" && (status == "OK" || status == "ERROR") {
+func isFinalStatus(status string) bool {
+	return status == "OK" ||
+		status == "ERROR" ||
+		strings.Contains(status, "+CMS ERROR") ||
+		strings.Contains(status, "+CME ERROR")
+}
+
+func parsePacket(status, header, body string) Packet {
+	if header == "" && isFinalStatus(status) {
 		if status == "OK" {
 			return OK{}
 		} else {
@@ -201,13 +208,17 @@ func parsePacket(status string, header string, body string) Packet {
 					iargs = append(iargs, iarg)
 				}
 			}
-			if len(iargs) != 6 {
-				break
+			if len(iargs) == 6 {
+				return StorageInfo{
+					iargs[0], iargs[1], iargs[2], iargs[3], iargs[4], iargs[5],
+				}
+			} else if len(iargs) == 4 {
+				return StorageInfo{
+					iargs[0], iargs[1], iargs[2], iargs[3], 0, 0,
+				}
 			}
+			break
 
-			return StorageInfo{
-				iargs[0], iargs[1], iargs[2], iargs[3], iargs[4], iargs[5],
-			}
 		}
 	case "":
 		if status == "OK" {
@@ -235,7 +246,7 @@ func (self *Modem) listen() {
 				}
 				header = line
 				body = ""
-			} else if line == "OK" || line == "ERROR" {
+			} else if isFinalStatus(line) {
 				packet := parsePacket(line, header, body)
 				self.rx <- packet
 				header = ""
@@ -305,7 +316,10 @@ func (self *Modem) init() error {
 	// use combined storage (MT)
 	msg, err := self.send("+CPMS", "SM", "SM", "SM")
 	if err != nil {
-		return err
+		msg, err = self.send("+CPMS", "SM", "SM")
+		if err != nil {
+			return err
+		}
 	}
 	sinfo := msg.(StorageInfo)
 	log.Printf("Set SMS Storage: %d/%d used\n", sinfo.UsedSpace1, sinfo.MaxSpace1)

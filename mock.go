@@ -45,7 +45,7 @@ func (self *MockSerialPort) Write(b []byte) (int, error) {
 	}
 	i := self.replay[0]
 	if strings.Index(i, "->") != 0 {
-		fmt.Printf("Replay isn't data to send:", i)
+		fmt.Println("Replay isn't data to send:", i)
 		panic("fail")
 	}
 	expected := i[2:]
