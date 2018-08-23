@@ -305,7 +305,10 @@ func (self *Modem) init() error {
 	// use combined storage (MT)
 	msg, err := self.send("+CPMS", "SM", "SM", "SM")
 	if err != nil {
-		return err
+		msg, err = self.send("+CPMS", "SM", "SM")
+		if err != nil {
+			return err
+		}
 	}
 	sinfo := msg.(StorageInfo)
 	log.Printf("Set SMS Storage: %d/%d used\n", sinfo.UsedSpace1, sinfo.MaxSpace1)
